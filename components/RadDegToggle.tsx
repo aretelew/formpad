@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+
 interface RadDegToggleProps {
   value: 'RAD' | 'DEG';
   onChange: (mode: 'RAD' | 'DEG') => void;
@@ -7,19 +9,17 @@ interface RadDegToggleProps {
 
 export default function RadDegToggle({ value, onChange }: RadDegToggleProps) {
   return (
-    <div className="flex overflow-hidden rounded-md border border-[#333333] bg-[#2f2f2f]">
+    <div className="flex overflow-hidden rounded-md border border-border bg-secondary">
       {(['RAD', 'DEG'] as const).map((mode) => (
-        <button
+        <Button
           key={mode}
+          size="sm"
+          variant={value === mode ? 'default' : 'ghost'}
           onClick={() => onChange(mode)}
-          className={`px-3.5 py-1 text-xs font-semibold tracking-wide transition-colors ${
-            value === mode
-              ? 'bg-[#2b7fff] text-white'
-              : 'text-[#999999] hover:text-[#eeeeee]'
-          }`}
+          className="rounded-none px-3.5 text-xs font-semibold tracking-wide h-7"
         >
           {mode}
-        </button>
+        </Button>
       ))}
     </div>
   );

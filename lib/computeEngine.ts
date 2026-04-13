@@ -15,7 +15,7 @@ export function tryComputeEngine(
     const ce = getCE();
 
     // Set angle unit
-    (ce as any).angularUnit = angleMode === 'DEG' ? 'degree' : 'radian';
+    (ce as any).angularUnit = angleMode === 'DEG' ? 'deg' : 'rad';
 
     const expr = ce.parse(latex);
     if (!expr.isValid) return null;
@@ -24,7 +24,7 @@ export function tryComputeEngine(
     const val = result.valueOf();
 
     if (typeof val === 'number') {
-      if (!isFinite(val) || isNaN(val)) return null;
+      if (!isFinite(val) || isNaN(val)) return 'Undefined';
       // Trim floating-point noise: up to 10 significant digits
       const formatted = parseFloat(val.toPrecision(10));
       return String(formatted);
@@ -32,11 +32,11 @@ export function tryComputeEngine(
 
     // For non-numeric results (symbolic), return the LaTeX representation
     const latex_out = result.latex;
-    if (latex_out && latex_out !== 'Undefined' && latex_out !== 'NaN') {
+    if (latex_out && latex_out !== 'Undefined' && latex_out !== 'NaN' && !latex_out.includes('infty')) {
       return latex_out;
     }
 
-    return null;
+    return 'Undefined';
   } catch {
     return null;
   }
