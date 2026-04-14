@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import HistoryArea from './HistoryArea';
 import Keypad from './Keypad';
 import { tryComputeEngine } from '@/lib/computeEngine';
+import { getFunctionParameterHint } from '@/lib/functionHints';
 import { isKnownHard } from '@/lib/hardPatterns';
 import type { FieldHandle } from '@/types/mathfield';
 
@@ -79,7 +80,10 @@ export default function Calculator() {
         let result = 'error';
         let source: Entry['source'] = 'error';
 
-        if (!isKnownHard(processed)) {
+        if (getFunctionParameterHint(latex)) {
+          result = '';
+          source = '';
+        } else if (!isKnownHard(processed)) {
           const ceResult = tryComputeEngine(processed, angleMode);
           if (ceResult === 'Undefined') {
             result = 'undefined';
@@ -137,7 +141,7 @@ export default function Calculator() {
       let result = '';
       let source: Entry['source'] = '';
 
-      if (!isKnownHard(processed)) {
+      if (!getFunctionParameterHint(latex) && !isKnownHard(processed)) {
         const ceResult = tryComputeEngine(processed, angleModeRef.current);
         if (ceResult === 'Undefined') {
           result = 'undefined';
