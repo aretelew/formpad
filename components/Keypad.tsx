@@ -386,12 +386,17 @@ export default function Keypad({ mathfieldRef, commitRef, angleMode, onAngleMode
       {/* Row 1 — integrals & derivatives */}
       <div className="flex gap-1">
         <Key className="flex-1" variant="fn"
-          label={<>∫ <span className="italic text-[0.85em]">f</span> d<span className="italic text-[0.85em]">x</span></>}
-          onPress={() => write(mf(), '\\int\\,d')}
+          label={
+            <span className="inline-flex items-center gap-1 font-serif">
+              <span className="text-base leading-none">∫</span>
+              <span className="italic text-[0.78em] leading-none">dx</span>
+            </span>
+          }
+          onPress={() => { write(mf(), '\\int d'); keystroke(mf(), 'Left'); }}
         />
         <Key className="flex-1" variant="fn"
           label={<>∫<Sub>a</Sub><Sup>b</Sup></>}
-          onPress={() => write(mf(), '\\int_{}^{}\\,d')}
+          onPress={() => { write(mf(), '\\integral_{}^{} d'); keystroke(mf(), 'Left'); }}
         />
         <Key className="flex-1" variant="fn"
           label={<Frac num="d" den="dx" />}
@@ -448,8 +453,8 @@ export default function Keypad({ mathfieldRef, commitRef, angleMode, onAngleMode
         <Key className="flex-1" variant="fn" label="Taylor"
           onPress={() => { write(mf(), '\\operatorname{taylor}()'); keystroke(mf(), 'Left'); }} />
         <Key className="flex-1" variant="fn" label="∇"     onPress={() => write(mf(), '\\nabla')} />
-        <Key className="flex-1" variant="fn" label="∬"     onPress={() => write(mf(), '\\iint\\,d\\,d')} />
-        <Key className="flex-1" variant="fn" label="∮"     onPress={() => write(mf(), '\\oint\\,d')} />
+        <Key className="flex-1" variant="fn" label="∬"     onPress={() => { write(mf(), '\\int\\int d d'); keystroke(mf(), 'Left'); keystroke(mf(), 'Left'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn" label="∮"     onPress={() => { write(mf(), '\\oint d'); keystroke(mf(), 'Left'); }} />
       </div>
 
       {/* Row 5 — greek letters + actions */}
