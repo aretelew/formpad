@@ -277,34 +277,28 @@ export default function Keypad({ mathfieldRef, commitRef, angleMode, onAngleMode
           onPress={() => keystroke(mf(), 'Right')} />
       </div>
 
-      {/* Row 4 — misc */}
+      {/* Row 4 — delimiters */}
       <div className="flex gap-1">
         <Key className="flex-1" variant="fn" label="("   onPress={() => write(mf(), '(')} />
         <Key className="flex-1" variant="fn" label=")"   onPress={() => write(mf(), ')')} />
+        <Key className="flex-1" variant="fn" label="["   onPress={() => write(mf(), '[')} />
+        <Key className="flex-1" variant="fn" label="]"   onPress={() => write(mf(), ']')} />
         <Key className="flex-1" variant="fn" label=","   onPress={() => write(mf(), ',')} />
         <Key className="flex-1" variant="fn" label="."   onPress={() => typedText(mf(), '.')} />
         <Key className="flex-1" variant="fn" label="%"   onPress={() => write(mf(), '\\%')} />
         <Key className="flex-1" variant="fn" label="ans" onPress={() => write(mf(), '\\text{ans}')} />
-        <Key className="flex-1" variant="fn" label="nPr"
-          onPress={() => { write(mf(), '\\operatorname{nPr}()'); keystroke(mf(), 'Left'); }} />
-        <Key className="flex-1" variant="fn" label="nCr"
-          onPress={() => { write(mf(), '\\operatorname{nCr}()'); keystroke(mf(), 'Left'); }} />
       </div>
 
-      {/* Row 5 — stats / rounding + actions */}
+      {/* Row 5 — utility + actions */}
       <div className="flex gap-1">
-        <Key className="flex-1" variant="fn"   label="round"
-          onPress={() => { write(mf(), '\\operatorname{round}()'); keystroke(mf(), 'Left'); }} />
-        <Key className="flex-1" variant="fn"   label="floor"
-          onPress={() => { write(mf(), '\\operatorname{floor}()'); keystroke(mf(), 'Left'); }} />
-        <Key className="flex-1" variant="fn"   label="ceil"
-          onPress={() => { write(mf(), '\\operatorname{ceil}()'); keystroke(mf(), 'Left'); }} />
-        <Key className="flex-1" variant="fn"   label="mean"
-          onPress={() => { write(mf(), '\\operatorname{mean}()'); keystroke(mf(), 'Left'); }} />
-        <Key className="flex-1" variant="fn"   label="stdev"
-          onPress={() => { write(mf(), '\\operatorname{stdev}()'); keystroke(mf(), 'Left'); }} />
-        <Key className="flex-1" variant="fn"   label="stdevp"
-          onPress={() => { write(mf(), '\\operatorname{stdevp}()'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn"   label="∞"
+          onPress={() => write(mf(), '\\infty')} />
+        <Key className="flex-1" variant="fn"   label={<>10<Sup>x</Sup></>}
+          onPress={() => { write(mf(), '10'); cmd(mf(), '^'); }} />
+        <Key className="flex-1" variant="fn"   label="nPr"
+          onPress={() => { write(mf(), '\\operatorname{nPr}()'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn"   label="nCr"
+          onPress={() => { write(mf(), '\\operatorname{nCr}()'); keystroke(mf(), 'Left'); }} />
         <Key className="flex-1" variant="dark" label="⌫"
           onPress={() => keystroke(mf(), 'Backspace')} />
         <Key className="flex-1" variant="blue" label="↵"
@@ -347,9 +341,9 @@ export default function Keypad({ mathfieldRef, commitRef, angleMode, onAngleMode
         ))}
       </div>
 
-      {/* Row 3: = z x c v b n m , ⌫ */}
+      {/* Row 3: = z x c v b n m _ ⌫ */}
       <div className="flex gap-1">
-        {(['=', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ','] as const).map((c) => (
+        {(['=', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '_'] as const).map((c) => (
           <Key key={c} className="flex-1" variant="fn"
             label={<i>{c}</i>}
             onPress={() => typedText(mf(), c)}
@@ -359,7 +353,7 @@ export default function Keypad({ mathfieldRef, commitRef, angleMode, onAngleMode
           onPress={() => keystroke(mf(), 'Backspace')} />
       </div>
 
-      {/* Row 4: ⇧ ( ) [ ] ! ' π ↵ */}
+      {/* Row 4: ⇧ { } < > * ' ↵ */}
       <div className="flex gap-1">
         <Key
           className="flex-[1.4]"
@@ -367,12 +361,11 @@ export default function Keypad({ mathfieldRef, commitRef, angleMode, onAngleMode
           label={<ChevronUp size={14} />}
           onPress={() => setShifted((s) => !s)}
         />
-        {(['(', ')', '[', ']', '!'] as const).map((c) => (
+        {(['{', '}', '<', '>', '*'] as const).map((c) => (
           <Key key={c} className="flex-1" variant="fn" label={c}
             onPress={() => typedText(mf(), c)} />
         ))}
         <Key className="flex-1" variant="fn" label="'" onPress={() => typedText(mf(), "'")} />
-        <Key className="flex-1" variant="fn" label="π" onPress={() => write(mf(), '\\pi')} />
         <Key className="flex-[1.4]" variant="blue" label="↵"
           onPress={() => commitRef.current?.()} />
       </div>
@@ -436,33 +429,38 @@ export default function Keypad({ mathfieldRef, commitRef, angleMode, onAngleMode
           onPress={() => { write(mf(), '\\operatorname{expand}()'); keystroke(mf(), 'Left'); }} />
       </div>
 
-      {/* Row 3 — common symbols */}
+      {/* Row 3 — relations & symbols */}
       <div className="flex gap-1">
-        <Key className="flex-1" variant="fn" label="∞"  onPress={() => write(mf(), '\\infty')} />
         <Key className="flex-1" variant="fn" label="→"  onPress={() => write(mf(), '\\to')} />
         <Key className="flex-1" variant="fn" label="≈"  onPress={() => write(mf(), '\\approx')} />
         <Key className="flex-1" variant="fn" label="±"  onPress={() => write(mf(), '\\pm')} />
         <Key className="flex-1" variant="fn" label="≠"  onPress={() => write(mf(), '\\neq')} />
-        <Key className="flex-1" variant="fn" label="·"  onPress={() => write(mf(), '\\cdot')} />
+        <Key className="flex-1" variant="fn" label="≤"  onPress={() => write(mf(), '\\leq')} />
+        <Key className="flex-1" variant="fn" label="≥"  onPress={() => write(mf(), '\\geq')} />
       </div>
 
-      {/* Row 4 — relation symbols */}
+      {/* Row 4 — stats & rounding */}
       <div className="flex gap-1">
-        <Key className="flex-1" variant="fn" label="≤"     onPress={() => write(mf(), '\\leq')} />
-        <Key className="flex-1" variant="fn" label="≥"     onPress={() => write(mf(), '\\geq')} />
-        <Key className="flex-1" variant="fn" label="Taylor"
-          onPress={() => { write(mf(), '\\operatorname{taylor}()'); keystroke(mf(), 'Left'); }} />
-        <Key className="flex-1" variant="fn" label="∇"     onPress={() => write(mf(), '\\nabla')} />
-        <Key className="flex-1" variant="fn" label="∬"     onPress={() => { write(mf(), '\\int\\int d d'); keystroke(mf(), 'Left'); keystroke(mf(), 'Left'); keystroke(mf(), 'Left'); }} />
-        <Key className="flex-1" variant="fn" label="∮"     onPress={() => { write(mf(), '\\oint d'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn" label="mean"
+          onPress={() => { write(mf(), '\\operatorname{mean}()'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn" label="stdev"
+          onPress={() => { write(mf(), '\\operatorname{stdev}()'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn" label="stdevp"
+          onPress={() => { write(mf(), '\\operatorname{stdevp}()'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn" label="round"
+          onPress={() => { write(mf(), '\\operatorname{round}()'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn" label="floor"
+          onPress={() => { write(mf(), '\\operatorname{floor}()'); keystroke(mf(), 'Left'); }} />
+        <Key className="flex-1" variant="fn" label="ceil"
+          onPress={() => { write(mf(), '\\operatorname{ceil}()'); keystroke(mf(), 'Left'); }} />
       </div>
 
       {/* Row 5 — greek letters + actions */}
       <div className="flex gap-1">
-        <Key className="flex-1" variant="fn"   label="δ"  onPress={() => write(mf(), '\\delta')} />
-        <Key className="flex-1" variant="fn"   label="ε"  onPress={() => write(mf(), '\\epsilon')} />
-        <Key className="flex-1" variant="fn"   label="λ"  onPress={() => write(mf(), '\\lambda')} />
+        <Key className="flex-1" variant="fn"   label="α"  onPress={() => write(mf(), '\\alpha')} />
+        <Key className="flex-1" variant="fn"   label="β"  onPress={() => write(mf(), '\\beta')} />
         <Key className="flex-1" variant="fn"   label="θ"  onPress={() => write(mf(), '\\theta')} />
+        <Key className="flex-1" variant="fn"   label="λ"  onPress={() => write(mf(), '\\lambda')} />
         <Key className="flex-1" variant="dark" label="⌫"
           onPress={() => keystroke(mf(), 'Backspace')} />
         <Key className="flex-1" variant="blue" label="↵"
