@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import 'mathlive';
+import { useEffect, useRef, useMemo } from 'react';
+import { EditableMathField } from 'react-mathquill';
 import katex from 'katex';
 import { Badge } from '@/components/ui/badge';
 import type { Entry } from './Calculator';
+import type { FieldHandle } from '@/types/mathfield';
 
 interface Props {
   entry: Entry;
@@ -14,111 +15,98 @@ interface Props {
   onDelete: (id: number) => void;
   onFocus: (id: number) => void;
   onNavigate: (id: number, direction: 'up' | 'down') => void;
-  registerField: (id: number, el: any) => void;
+  registerField: (id: number, handle: FieldHandle | null) => void;
 }
 
-export default function HistoryRow({ entry, deletable, onCommit, onLiveChange, onDelete, onFocus, onNavigate, registerField }: Props) {
-  const mfRef = useRef<any>(null);
+export default function HistoryRow({
+  entry,
+  deletable,
+  onCommit,
+  onLiveChange,
+  onDelete,
+  onFocus,
+  onNavigate,
+  registerField,
+}: Props) {
+  const mfHandleRef = useRef<FieldHandle | null>(null);
+  // Prevents edit handler from firing when latex is set programmatically
+  const isProgrammaticRef = useRef(false);
   const resultRef = useRef<HTMLSpanElement>(null);
 
-  // Stable refs so the one-time setup effect never needs to re-run when
-  // callbacks are recreated by the parent
+  // True only for brand-new empty entries that should grab focus on mount
+  const shouldFocusOnMountRef = useRef(!entry.result && !entry.latex);
+
+  // Stable callback refs so the one-time config closure never goes stale
   const onCommitRef = useRef(onCommit);
   const onLiveChangeRef = useRef(onLiveChange);
   const onDeleteRef = useRef(onDelete);
-  const onFocusRef = useRef(onFocus);
   const onNavigateRef = useRef(onNavigate);
   const deletableRef = useRef(deletable);
   useEffect(() => { onCommitRef.current = onCommit; });
   useEffect(() => { onLiveChangeRef.current = onLiveChange; });
   useEffect(() => { onDeleteRef.current = onDelete; });
-  useEffect(() => { onFocusRef.current = onFocus; });
   useEffect(() => { onNavigateRef.current = onNavigate; });
   useEffect(() => { deletableRef.current = deletable; });
 
-  // One-time mount: configure math-field and attach event listeners
-  useEffect(() => {
-    const mf = mfRef.current;
-    if (!mf) return;
-
-    mf.mathVirtualKeyboardPolicy = 'manual';
-    mf.menuItems = [];
-
-    const handleCommit = () => {
-      // MathLive fires 'change' on both Enter AND blur. Only commit on Enter
-      // (field still focused) or when triggered programmatically (keypad).
-      // Skip if the field lost focus — that means the user just clicked elsewhere.
-      if (!mf.hasFocus()) return;
-      onCommitRef.current(entry.id, mf.getValue('latex'));
-    };
-    const handleInput = () => {
-      onLiveChangeRef.current(entry.id, mf.getValue('latex'));
-    };
-    // Track whether the field was empty *before* MathLive processes the
-    // keystroke.  MathLive handles Backspace during the capture/target phase,
-    // so by the time a bubbling-phase keydown listener runs the character is
-    // already gone and getValue() returns ''.  We snapshot the "was-empty"
-    // state in capture phase and consume it in the bubbling handler.
-    let wasEmptyBeforeKey = false;
-    const captureKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Backspace') {
-        wasEmptyBeforeKey = !mf.getValue('latex').trim();
-      }
-    };
-    const handleKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Backspace' && wasEmptyBeforeKey && deletableRef.current) {
-        e.preventDefault();
-        mf.blur();
-        onDeleteRef.current(entry.id);
-      }
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        onNavigateRef.current(entry.id, e.key === 'ArrowUp' ? 'up' : 'down');
-      }
-    };
-    const handleFocus = () => {
-      onFocusRef.current(entry.id);
-    };
-
-    mf.addEventListener('change', handleCommit);
-    mf.addEventListener('input', handleInput);
-    mf.addEventListener('keydown', captureKeydown, true);   // capture phase
-    mf.addEventListener('keydown', handleKeydown);           // bubble phase
-    mf.addEventListener('focus', handleFocus);
-
-    // Fresh entry (no result yet) → auto-focus after MathLive initialises.
-    // MathLive defers internal setup after connectedCallback, so retry until ready.
-    let cancelled = false;
-    if (!entry.result) {
-      let attempts = 0;
-      const tryFocus = () => {
-        if (cancelled) return;
-        try {
-          mf.focus();
-        } catch {
-          if (++attempts < 15) setTimeout(tryFocus, 20);
-        }
-      };
-      setTimeout(tryFocus, 0);
-    }
-
-    return () => {
-      cancelled = true;
-      mf.removeEventListener('change', handleCommit);
-      mf.removeEventListener('input', handleInput);
-      mf.removeEventListener('keydown', captureKeydown, true);
-      mf.removeEventListener('keydown', handleKeydown);
-      mf.removeEventListener('focus', handleFocus);
-    };
+  // Config must be stable — MathQuill re-initialises when it changes.
+  // All handlers read from refs so they always call the latest version.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const config = useMemo(() => ({
+    autoOperatorNames: 'sin cos tan ln log',
+    autoCommands: 'pi theta',
+    handlers: {
+      edit: (_mf: any) => {
+        // mf is undefined during MathQuill's own init call; mfHandleRef guards that
+        if (isProgrammaticRef.current || !mfHandleRef.current) return;
+        onLiveChangeRef.current(entry.id, mfHandleRef.current.getLatex());
+      },
+      enter: (_mf: any) => {
+        if (!mfHandleRef.current) return;
+        onCommitRef.current(entry.id, mfHandleRef.current.getLatex());
+      },
+      // dir is MathQuill's L (-1) or R (1); check < 0 for left (backspace boundary)
+      deleteOutOf: (dir: number, _mf: any) => {
+        if (dir < 0 && deletableRef.current) {
+          onDeleteRef.current(entry.id);
+        }
+      },
+      upOutOf: () => {
+        onNavigateRef.current(entry.id, 'up');
+      },
+      downOutOf: () => {
+        onNavigateRef.current(entry.id, 'down');
+      },
+    },
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleMathquillDidMount = (mf: any) => {
+    const handle: FieldHandle = {
+      focus: () => mf.focus(),
+      blur: () => mf.blur(),
+      getLatex: () => mf.latex() as string,
+      setLatex: (v: string) => {
+        isProgrammaticRef.current = true;
+        mf.latex(v);
+        isProgrammaticRef.current = false;
+      },
+      keystroke: (key: string) => mf.keystroke(key),
+      write: (latex: string) => mf.write(latex),
+      cmd: (c: string) => mf.cmd(c),
+      typedText: (text: string) => mf.typedText(text),
+    };
+    mfHandleRef.current = handle;
+    registerField(entry.id, handle);
 
-  // Register / deregister this field in the parent's ref map
+    if (shouldFocusOnMountRef.current) {
+      mf.focus();
+    }
+  };
+
+  // Deregister on unmount
   useEffect(() => {
-    const mf = mfRef.current;
-    registerField(entry.id, mf);
-    return () => registerField(entry.id, null);
+    return () => {
+      registerField(entry.id, null);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -147,12 +135,15 @@ export default function HistoryRow({ entry, deletable, onCommit, onLiveChange, o
   return (
     <div
       className="flex items-center gap-2 px-4 py-2.5 border-t border-border min-h-[60px] bg-background"
-      onClick={() => mfRef.current?.focus()}
+      onClick={() => mfHandleRef.current?.focus()}
     >
-      <math-field
-        ref={mfRef}
-        suppressHydrationWarning
-        style={{ flex: 1, fontSize: '20px', minHeight: '1.5em', '--ML__fieldbackground-color': 'transparent' } as React.CSSProperties}
+      <EditableMathField
+        latex=""
+        config={config}
+        mathquillDidMount={handleMathquillDidMount}
+        onFocus={() => onFocus(entry.id)}
+        className="mq-field"
+        style={{ flex: 1, fontSize: '20px', minHeight: '1.5em', cursor: 'text' } as React.CSSProperties}
       />
       {entry.result && (
         <span className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">

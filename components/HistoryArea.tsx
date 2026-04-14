@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import HistoryRow from './HistoryRow';
+import dynamic from 'next/dynamic';
 import type { Entry } from './Calculator';
+import type { FieldHandle } from '@/types/mathfield';
+
+// Skip SSR — react-mathquill touches document at import time
+const HistoryRow = dynamic(() => import('./HistoryRow'), { ssr: false });
 
 interface Props {
   entries: Entry[];
@@ -11,12 +15,17 @@ interface Props {
   onDelete: (id: number) => void;
   onFocus: (id: number) => void;
   onNavigate: (id: number, direction: 'up' | 'down') => void;
-  registerField: (id: number, el: any) => void;
+  registerField: (id: number, handle: FieldHandle | null) => void;
 }
 
 export default function HistoryArea({ entries, onCommit, onLiveChange, onDelete, onFocus, onNavigate, registerField }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Inject MathQuill stylesheet once on the client
+  useEffect(() => {
+    import('react-mathquill').then(({ addStyles }) => addStyles());
+  }, []);
 
   useEffect(() => {
     const content = contentRef.current;

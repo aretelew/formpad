@@ -5,6 +5,7 @@ import HistoryArea from './HistoryArea';
 import Keypad from './Keypad';
 import { tryComputeEngine } from '@/lib/computeEngine';
 import { isKnownHard } from '@/lib/hardPatterns';
+import type { FieldHandle } from '@/types/mathfield';
 
 export type Entry = {
   id: number;
@@ -28,8 +29,10 @@ function makeEntry(): Entry {
 export default function Calculator() {
   const [entries, setEntries] = useState<Entry[]>(() => [makeEntry()]);
   const [angleMode, setAngleMode] = useState<'RAD' | 'DEG'>('DEG');
-  // The math-field that is currently focused — Keypad always writes here
-  const activeMfRef = useRef<any>(null);
+  // The FieldHandle for the currently-focused row — Keypad always writes here
+  const activeMfRef = useRef<FieldHandle | null>(null);
+  // Bound commit thunk for the currently-focused row — called by Keypad's ↵ button
+  const activeCommitRef = useRef<(() => void) | null>(null);
 
   // Snapshot undo/redo — only used for "clear all" restore
   const undoStackRef = useRef<Entry[][]>([]);
@@ -38,16 +41,16 @@ export default function Calculator() {
   // Per-operation redo stack for character / row-level operations
   const charRedoRef = useRef<RedoOp[]>([]);
   const [canRedo, setCanRedo] = useState(false);
-  // Each undo/redo op fires exactly one MathLive 'input' event that should NOT clear the
+  // Each undo/redo op fires exactly one edit event that should NOT clear the
   // redo stack.  Increment before the op; handleLiveChange decrements instead of clearing.
   const skipClearRedoRef = useRef(0);
   // Track whether the active field has typed content (enables in-field undo via button)
   const [activeFieldHasContent, setActiveFieldHasContent] = useState(false);
-  // After undo/redo, sync MathLive field values to entry.latex
+  // After undo/redo, sync MathQuill field values to entry.latex
   const pendingSyncRef = useRef<Entry[] | null>(null);
 
-  // Map from entry id → math-field DOM element
-  const fieldRefs = useRef<Map<number, any>>(new Map());
+  // Map from entry id → FieldHandle
+  const fieldRefs = useRef<Map<number, FieldHandle>>(new Map());
 
   // After a state update that adds a new entry, focus it
   const pendingFocusId = useRef<number | null>(null);
@@ -63,8 +66,8 @@ export default function Calculator() {
       for (let idx = 0; idx < next.length; idx++) {
         const e = next[idx];
         // entry.latex is only populated after commit; for live (uncommitted) entries
-        // fall back to reading the current value directly from the math-field.
-        const latex = e.latex.trim() || fieldRefs.current.get(e.id)?.getValue('latex')?.trim() || '';
+        // fall back to reading the current value directly from the field handle.
+        const latex = e.latex.trim() || fieldRefs.current.get(e.id)?.getLatex()?.trim() || '';
         if (!latex) continue;
 
         const ans = next.slice(0, idx)
@@ -97,8 +100,7 @@ export default function Calculator() {
     if (pendingFocusId.current === null) return;
     const id = pendingFocusId.current;
     pendingFocusId.current = null;
-    // rAF ensures MathLive has finished any internal reinit after the render
-    // before we call focus (avoids "this.mathfield is undefined" on deletion).
+    // rAF ensures MathQuill has finished any internal reinit after the render
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         fieldRefs.current.get(id)?.focus();
@@ -209,22 +211,27 @@ export default function Calculator() {
     });
   }, []);
 
-  const registerField = useCallback((id: number, el: any) => {
-    if (el) fieldRefs.current.set(id, el);
+  const registerField = useCallback((id: number, handle: FieldHandle | null) => {
+    if (handle) fieldRefs.current.set(id, handle);
     else fieldRefs.current.delete(id);
   }, []);
 
   const handleFocus = useCallback((id: number) => {
     const field = fieldRefs.current.get(id) ?? null;
     activeMfRef.current = field;
-    setActiveFieldHasContent(!!(field?.getValue('latex')?.trim()));
-  }, []);
+    setActiveFieldHasContent(!!(field?.getLatex()?.trim()));
+    // Bind a commit thunk for this row so Keypad's ↵ button can trigger it
+    activeCommitRef.current = () => {
+      const latex = fieldRefs.current.get(id)?.getLatex() ?? '';
+      handleCommit(id, latex);
+    };
+  }, [handleCommit]);
 
   // Read entries without subscribing — used by handleNavigate to avoid stale closures
   const entriesRef = useRef(entries);
   useEffect(() => { entriesRef.current = entries; }, [entries]);
 
-  // After undo/redo: sync MathLive field values to entry.latex
+  // After undo/redo: sync MathQuill field values to entry.latex
   useEffect(() => {
     if (!pendingSyncRef.current) return;
     const toSync = pendingSyncRef.current;
@@ -232,7 +239,7 @@ export default function Calculator() {
     requestAnimationFrame(() => {
       for (const entry of toSync) {
         const field = fieldRefs.current.get(entry.id);
-        if (field) field.setValue(entry.latex || '');
+        if (field) field.setLatex(entry.latex || '');
       }
     });
   }, [entries]);
@@ -258,14 +265,14 @@ export default function Calculator() {
     }
 
     // Active field has content → delete one character, save latex for redo
-    if (field && field.getValue('latex').trim()) {
-      const before = field.getValue('latex');
+    if (field && field.getLatex().trim()) {
+      const before = field.getLatex();
       if (activeId !== undefined) {
         charRedoRef.current = [...charRedoRef.current, { type: 'char', id: activeId, latex: before }];
         setCanRedo(true);
       }
       skipClearRedoRef.current++;
-      field.executeCommand('deleteBackward');
+      field.keystroke('Backspace');
       field.focus();
       return;
     }
@@ -308,10 +315,9 @@ export default function Calculator() {
       if (op.type === 'char') {
         const f = fieldRefs.current.get(op.id);
         if (f) {
-          // setValue does NOT fire 'input' events, so no need for skipClearRedoRef.
-          // Instead, manually trigger handleLiveChange to recompute the result.
+          // setLatex guards against firing edit; call handleLiveChange manually to recompute result
           skipClearRedoRef.current++;
-          f.setValue(op.latex);
+          f.setLatex(op.latex);
           f.focus();
           setActiveFieldHasContent(!!op.latex.trim());
           handleLiveChange(op.id, op.latex);
@@ -351,7 +357,7 @@ export default function Calculator() {
   }, []);
 
   return (
-    <div className="w-full max-w-[780px] h-[min(100vh,860px)] flex flex-col bg-background rounded overflow-hidden shadow-2xl border border-border">
+    <div className="w-full max-w-[780px] h-[min(calc(100vh-2rem),860px)] flex flex-col bg-background rounded overflow-hidden shadow-2xl border border-border">
       <HistoryArea
         entries={entries}
         onCommit={handleCommit}
@@ -363,6 +369,7 @@ export default function Calculator() {
       />
       <Keypad
         mathfieldRef={activeMfRef}
+        commitRef={activeCommitRef}
         angleMode={angleMode}
         onAngleModeChange={setAngleMode}
         onClearHistory={handleClearHistory}

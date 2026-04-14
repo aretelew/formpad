@@ -27,28 +27,44 @@ body {
   align-items: center;
 }
 
-/* MathLive field styling — can't be done with Tailwind utilities alone */
-math-field {
-  width: 100%;
-  font-size: 24px;
-  background: transparent;
-  border: none;
-  outline: none;
+/* MathQuill field overrides */
+.mq-editable-field,
+.mq-math-mode {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   color: var(--foreground);
-  --caret-color: var(--primary);
-  --selection-background-color: #2b7fff44;
-  cursor: text;
+  outline: none;
+  font-family: inherit;
 }
 
-/* MathLive virtual keyboard container */
-#keypad-container {
+.mq-editable-field .mq-cursor {
+  border-left-color: var(--primary) !important;
+}
+
+.mq-editable-field .mq-selection,
+.mq-editable-field .mq-selection .mq-non-leaf {
+  background: #2b7fff44;
+  color: inherit;
+}
+
+/* Stretch the field span to fill its flex container */
+.mq-field {
+  display: block;
   width: 100%;
 }
 
-/* Hide MathLive's built-in UI chrome — we use our own keyboard */
-math-field::part(virtual-keyboard-toggle),
-math-field::part(menu-toggle) {
-  display: none;
+/* Backslash command input box (shown while typing e.g. \int) */
+.mq-latex-command-input {
+  background: var(--secondary) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+
+/* Empty block placeholders — MathQuill defaults to lightgray.
+   Only style nested empty slots (e.g. fraction denominator), not the root block. */
+.mq-math-mode .mq-empty:not(.mq-root-block) {
+  background: var(--secondary) !important;
 }
 
 @theme inline {
