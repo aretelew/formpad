@@ -54,6 +54,23 @@ body {
   width: 100%;
 }
 
+.mq-field.mq-field-with-hint {
+  display: inline-block;
+  flex: 0 1 auto;
+  min-width: 1ch;
+  max-width: 100%;
+  width: auto;
+}
+
+.mq-field.mq-field-with-hint .mq-root-block {
+  min-width: 1ch;
+}
+
+.mq-field.mq-field-with-hint var,
+.mq-field.mq-field-with-hint .mq-operator-name {
+  line-height: 1.2 !important;
+}
+
 /* Backslash command input box (shown while typing e.g. \int) */
 .mq-latex-command-input {
   background: var(--secondary) !important;
